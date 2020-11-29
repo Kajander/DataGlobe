@@ -8,7 +8,7 @@ function drawTHREEGeoPopulation(json, radius, shape, scene) {
 
   var json_geom = createGeometryArray(json);
   var convertCoordinates = getConversionFunctionName(shape);
-  for (var geom_num = 0; geom_num < 10; geom_num++) {
+  for (var geom_num = 0; geom_num < json_geom.length; geom_num++) {
 
     // if (geom_num !== 17) continue;
     // if (geom_num > 10) break;
@@ -16,22 +16,27 @@ function drawTHREEGeoPopulation(json, radius, shape, scene) {
     if (json_geom[geom_num].type == 'Point') {
       let lat = json_geom[geom_num].coordinates[0];
       let lon = json_geom[geom_num].coordinates[1];
-      //convertCoordinates(json_geom[geom_num].coordinates, radius);
 
+      //convertCoordinates(json_geom[geom_num].coordinates, radius);
       //drawParticle(y_values[0], z_values[0], x_values[0], scene);
+
+
       //var pop = json.features[geom_num].properties.data["2019"];
+
       if(json.features[geom_num].properties.data) {
         let pop = json.features[geom_num].properties.data['2019']
         let rounded = Math.round(pop / 1000000);
 
+
+        /*
         var edge = Math.round(rounded / 6);
         var cells = hexGrid(edge);
 
         for (let k = 0; k < cells.length; k++) {
           convertCoordinates([lat+cells[k].x / 4, lon+cells[k].y / 4], radius);
-
         }
-        //convertCoordinates([lat,lon], radius);
+        */
+        convertCoordinates([lat,lon], radius);
 
 
         for (let j = 0; j < x_values.length; j++) {
@@ -134,11 +139,11 @@ function createVertexForEachPoint(object_geometry, values_axis1, values_axis2, v
 function drawBox(x, y, z, pop, scene) {
 
   let rounded = Math.round(pop / 1000000);
-  let geometry = new THREE.CylinderGeometry(0.5, 0.5, rounded, 6, 6);
+  let geometry = new THREE.CylinderGeometry(1, 1, rounded, 6, 6);
   geometry.translate(0, rounded/2, 0);
 
   let material= new THREE.MeshBasicMaterial({
-    color: 0xFC826F
+    color: 0xFFFFFF
   });
   let baseV = new THREE.Vector3(0, 1, 0);
   let dirV = new THREE.Vector3();
