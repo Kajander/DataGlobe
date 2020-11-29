@@ -1,0 +1,260 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <title>My first three.js app</title>
+    <meta charset="utf-8">
+
+  </head>
+  <body>
+
+
+    <script type="text/javascript" src="src/three.js-master/build/three.js"></script>
+    <script type="module">
+
+      import * as THREE from './src/three.js-master/build/three.module.js';
+      import { OrbitControls } from './src/three.js-master/examples/jsm/controls/OrbitControls.js';
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 10000);
+      const renderer = new THREE.WebGLRenderer({antialias: true});
+      const controls = new OrbitControls(camera, renderer.domElement);
+
+      var distance = 400;
+      camera.position.z = distance;
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      // sets renderer background color
+      renderer.setClearColor("#222222");
+      renderer.sortObjects = false;
+      document.body.appendChild(renderer.domElement);
+      camera.position.z = distance;
+
+      //Sphere values
+      var radius = 200,
+      widthSegs = 64,
+      heightSegs = 64;
+
+
+      function drawGlobe() {
+
+        var basicGeometry = new THREE.SphereGeometry(radius, widthSegs, heightSegs);
+        var material = new THREE.MeshBasicMaterial({
+          color: 0x118AB2,
+          wireframe: false,
+          transparent: true,
+          opacity: 0.6 // changing this value affects the opacity of the globe
+        });
+        var sphere = new THREE.Mesh(basicGeometry, material);
+        sphere.name = "sphere";
+        scene.add(sphere);
+      }
+
+      function drawArea() {
+        fetch('../geojson/countries.medium.geo.json')
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          drawThreeGeo(data, radius+1, 'sphere', {color: 'yellow'}, scene);
+        });
+      }
+
+      function drawContinent() {
+        fetch('../geojson/continents.json')
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          drawThreeGeoBorder(data, radius+1.1, 'sphere', scene);
+        });
+      }
+
+      function drawBorder() {
+        fetch('../geojson/countries.medium.geo.json')
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          drawThreeGeoBorder(data, radius+1.1, 'sphere', scene);
+        });
+      }
+
+      function drawPopulation() {
+        fetch('../geojson/jeppsi.json')
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          drawTHREEGeoPopulation(data, radius+1, 'sphere', scene);
+        });
+      }
+
+      drawGlobe();
+      //drawContinent();
+      //drawBorder();
+      drawArea();
+      drawPopulation();
+
+      // ambient light
+      var ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+      scene.add( ambientLight );
+
+      // point light
+      var pointLight = new THREE.PointLight(0xffffff, 0.5);
+      pointLight.position.set(500, 500, 500);
+      scene.add(pointLight);
+
+      var countryInfo;
+      $.getJSON("./data/population.json", function(data) {
+        countryInfo = data.countries;
+      });
+
+
+      // resize canvas on resize window
+      window.addEventListener('resize', () => {
+      	let width = window.innerWidth;
+      	let height = window.innerHeight;
+      	renderer.setSize(width, height);
+      	camera.aspect = width / height;
+      	camera.updateProjectionMatrix();
+      })
+
+      function setupControls() {
+        controls.enableDamping = true;
+        controls.dampingFactor = 1;
+        controls.rotateSpeed = 0.3;
+        controls.enablePan = false;
+        controls.enableZoom = true;
+        controls.zoomSpeed = 0.5;
+        controls.minDistance = 210;
+        controls.maxDistance = 700;
+      }
+      setupControls();
+
+      function animate() {
+        controls.update()
+      	requestAnimationFrame(animate);
+        //scene.rotation.x += 0.001;
+        //scene.rotation.y += 0.002;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+
+      var raycaster = new THREE.Raycaster();
+
+      // this will be 2D coordinates of the current mouse position, [0,0] is middle of the screen.
+      var mouse = new THREE.Vector2();
+      var mouseDownX, mouseDownY;
+      var hoveredObj; // this objects is hovered at the moment
+
+      // Following two functions will convert mouse coordinates
+      // from screen to three.js system (where [0,0] is in the middle of the screen)
+      function updateMouseCoords(event, coordsObj) {
+          coordsObj.x = ((event.clientX - renderer.domElement.offsetLeft + 0.5) / window.innerWidth) * 2 - 1;
+          coordsObj.y = -((event.clientY - renderer.domElement.offsetTop + 0.5) / window.innerHeight) * 2 + 1;
+      }
+
+      function onMouseMove(event) {
+          updateMouseCoords(event, mouse);
+
+          var latestMouseProjection = undefined;
+          var clickedObj = undefined;
+
+          raycaster.setFromCamera(mouse, camera); {
+              var intersects = raycaster.intersectObjects(clickableObjects);
+
+              let setGroupColor = function(group, colorHex) {
+                  for (let i = 0; i < group.children.length; i++) {
+                      if (!group.children[i].userData.color) {
+                          group.children[i].userData.color = hoveredObj.parent.children[i].material.color.clone();
+                          group.children[i].material.color.set(colorHex);
+                          group.children[i].material.needsUpdate = true;
+                      }
+                  }
+              }
+
+              let resetGroupColor = function(group) {
+                  // set all shapes of the group to initial color
+                  for (let i = 0; i < group.children.length; i++) {
+                      if (group.children[i].userData.color) {
+                          group.children[i].material.color = group.children[i].userData.color;
+                          delete group.children[i].userData.color;
+                          group.children[i].material.needsUpdate = true;
+                      }
+                  }
+              }
+
+              if (intersects.length > 0) {
+
+                  latestMouseProjection = intersects[0].point;
+                  // reset colors for previously hovered group
+                  if (hoveredObj) {
+                      resetGroupColor(hoveredObj.parent);
+                  }
+
+                  hoveredObj = intersects[0].object;
+                  if (!hoveredObj.parent) return;
+                  // set colors for hovered group
+                  setGroupColor(hoveredObj.parent, 0xff0000);
+              } else {
+
+                  if (!hoveredObj || !hoveredObj.parent) return;
+
+                  // nothing is hovered => just reset colors on the last group
+                  resetGroupColor(hoveredObj.parent);
+                  hoveredObj = undefined;
+                  //console.log("deselected");
+              }
+          }
+      }
+
+      function onMouseDown(event) {
+        mouseDownX = event.clientX;
+        mouseDownY = event.clientY;
+      }
+
+      function onMouseUp(event) {
+
+        if (hoveredObj) {
+          //console.log(hoveredObj.parent);
+          if (mouseDownX == event.clientX || mouseDownY == event.clientY) {
+            for (let i = 0; i < countryInfo.length; i++) {
+              if (countryInfo[i].countryName == hoveredObj.parent.name) {
+                console.log(hoveredObj.parent.name);
+                let {x, y, z} = convertSingleLatLonToSphereCoords(countryInfo[i].coordinates, radius+1);
+                let countryMid = new THREE.Vector3(y, z, x);
+
+
+                // TODO: use tween to make the movement smooth
+                var camDistance = camera.position.length();
+                camera.position.copy(countryMid).normalize().multiplyScalar(250);
+                controls.update();
+
+
+                //hoveredObj.position.set(10,10,10);
+              }
+            }
+          }
+        }
+      }
+
+      window.addEventListener('mousedown', onMouseDown, false);
+      window.addEventListener('mouseup', onMouseUp, false);
+      window.addEventListener('mousemove', onMouseMove, false);
+
+    </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/delaunator@4.0.1/delaunator.js"></script> <!-- dev build -->
+
+    <script type="text/javascript" src="globe/script/helperFunctions.js"></script>
+    <script type="text/javascript" src="globe/script/drawArea.js"></script>
+    <script type="text/javascript" src="globe/script/drawBorder.js"></script>
+    <script type="text/javascript" src="globe/script/plotPopulation.js"></script>
+    <!--<script type="text/javascript" src="globe/third-party/Tween.js"></script>-->
+
+  </body>
+
+</html>

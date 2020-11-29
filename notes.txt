@@ -1,0 +1,11 @@
+
+World population
+https://data.worldbank.org/indicator/SP.POP.TOTL?end=2019&start=1960&view=chart&year=2019
+
+
+Maybe more interesting stuff
+https://data.opendatasoft.com/pages/home/
+
+
+Tuolt latit ja longit pop datalle
+https://developers.google.com/public-data/docs/canonical/countries_csv
